@@ -176,6 +176,40 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build nexus-
 
 ---
 
+## Testing
+
+Integration tests live in `tests/`. They run against a live stack.
+
+### Setup
+
+```bash
+cp tests/.env.test.example tests/.env.test
+```
+
+Edit `tests/.env.test` — set your API key (from step 4 of Quick Start) and confirm the URLs match your setup:
+
+```env
+NEXUS_API_KEY=nx_your_key_here
+NEXUS_BASE_URL=http://localhost:3000
+INFRA_DOMAIN=localhost
+```
+
+### Run
+
+```bash
+npm run test:api        # M2M lifecycle: deploy → upload → execute → delete
+npm run test:python     # Flask service mode + public URL access
+npm run test:node       # Express service mode + public URL access
+npm run test:discovery  # Blueprint list API
+npm run test:ui         # UI path: deploy → poll → restart → delete
+```
+
+All tests clean up after themselves. Set `SKIP_CLEANUP=true` in `tests/.env.test` to preserve instances for inspection.
+
+See [tests/README.md](tests/README.md) for full details.
+
+---
+
 ## Common Commands
 
 ```bash
