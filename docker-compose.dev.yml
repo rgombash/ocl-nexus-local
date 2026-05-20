@@ -1,0 +1,27 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# OCL Nexus Local — Development override
+# ═══════════════════════════════════════════════════════════════════════════
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# What this does:
+#   - Mounts the repo into the container so file changes are reflected live
+#   - Runs `npm run dev` instead of the pre-built production server
+#   - anonymous volumes for node_modules and .next prevent the host copies
+#     from shadowing the container's own npm ci output
+# ═══════════════════════════════════════════════════════════════════════════
+
+services:
+  nexus-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: deps          # stop after npm ci — skip the production build step
+    command: npm run dev
+    environment:
+      NODE_ENV: development
+    volumes:
+      - .:/app                  # live source mount
+      - /app/node_modules       # keep container's node_modules (from npm ci)
+      - /app/.next              # keep container's Next.js build cache
+      - shared-kubeconfig:/shared/k3s:ro

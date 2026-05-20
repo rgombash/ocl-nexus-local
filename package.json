@@ -1,0 +1,49 @@
+{
+  "name": "ocl-nexus-local",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test:api": "ts-node tests/api/lifecycle.test.ts",
+    "test:python": "ts-node tests/api/python-service.test.ts",
+    "test:discovery": "ts-node tests/api/discovery.test.ts",
+    "test:node": "ts-node tests/api/node-service.test.ts",
+    "test:ui": "ts-node tests/ui/ui-lifecycle.test.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1016.0",
+    "@aws-sdk/s3-request-presigner": "^3.1016.0",
+    "@kubernetes/client-node": "^1.4.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@stripe/stripe-js": "^8.11.0",
+    "@supabase/ssr": "^0.9.0",
+    "@supabase/supabase-js": "^2.99.3",
+    "@vercel/analytics": "^2.0.1",
+    "lucide-react": "^0.577.0",
+    "next": "14.2.35",
+    "pg": "^8.21.0",
+    "postgres": "^3.4.9",
+    "react": "^18",
+    "react-dom": "^18",
+    "recharts": "^3.8.1",
+    "stripe": "^20.4.1",
+    "yaml": "^2.8.3",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5"
+  }
+}

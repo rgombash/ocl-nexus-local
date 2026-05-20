@@ -30,6 +30,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# IDE / editor
+.vscode/
+
+# claude code local settings
+.claude/settings.local.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
