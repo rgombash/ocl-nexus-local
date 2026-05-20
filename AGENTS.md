@@ -34,6 +34,7 @@ npm run test:api        # M2M lifecycle
 npm run test:python     # Flask service
 npm run test:node       # Express service
 npm run test:discovery  # Blueprint discovery
+npm run test:ui         # UI lifecycle (deploy → poll → restart → delete)
 ```
 
 ## Local Mode Architecture
@@ -383,7 +384,7 @@ Health reconciliation: compares `app-{shortId}` Deployments in `u-00000000` agai
 - **Dynamic imports of deleted modules fail at build time** — Next.js resolves all `await import(...)` paths at compile time, even inside `if (!isLocalMode())` guards. Removing a lib file requires removing every dynamic import referencing it too
 - **`internalUrl` uses port 80, not blueprint port** — K8s Service exposes `:80` → `targetPort: blueprint.port`. All `internalUrl` values are `http://svc-{shortId}:80`. Pod-to-pod calls to `:8000` or `:3000` directly on the Service will time out
 - **Local kubeconfigs are NOT encrypted** — `getNodeKubeconfig()` returns raw file contents in local mode. Never call `decrypt()` on them. Cloud mode encrypts kubeconfigs in DB
-- **UI routes with inline K8s code need the `isLocal` node fallback** — Route handlers that fetch `node.kubeconfig` from the `nodes` table directly (outside `ops/`) will get `null` in local mode because the mock node is never persisted to DB. Pattern: `const { isLocalMode } = await import("@/lib/auth/dev-user"); const isLocal = isLocalMode();` then guard the 500 with `if (!node?.kubeconfig && !isLocal)` and use `getNodeKubeconfig(node ?? { kubeconfig: "" })`. Applied in `api/instances/[id]/shell/route.ts`; apply to any new route that does its own K8s access outside `ops/`.
+- **UI routes with inline K8s code need the `isLocal` node fallback** — Route handlers that fetch `node.kubeconfig` from the `nodes` table directly (outside `ops/`) must guard against the node row being absent or stale. Although `init-local.sh` seeds the mock node (`11111111-...`, `kubeconfig='local-mode'`), routes should still follow the defensive pattern: `const { isLocalMode } = await import("@/lib/auth/dev-user"); const isLocal = isLocalMode();` then `if (!node?.kubeconfig && !isLocal) return 500` and `getNodeKubeconfig(node ?? { kubeconfig: "" })`. Applied in `api/instances/[id]/shell/route.ts`; apply to any new route that does its own K8s access outside `ops/`. Routes that go through `ops/` are unaffected — `getLocalNode()` never hits the DB.
 - **Ghost K3s nodes on Docker restarts** — Without pinned hostname, each restart registers a new node in etcd. Fixed by `hostname: nexus-k3s` + `--node-name=nexus-k3s` + `nexus-node-cleaner`. Do not remove these
 - **`*.localhost` DNS is OS-dependent** — Linux systemd-resolved ≥247 handles it natively. macOS: use `INFRA_DOMAIN=localtest.me` or dnsmasq. See `QUICKSTART.md`
 - **`publicUrl` is server-computed** — `dashboard/page.tsx` computes it from `INFRA_DOMAIN` + `isLocalMode()` and passes as prop to `InstanceCardClient`. Client never derives URL itself
