@@ -1,0 +1,124 @@
+name: Build & Push Custom Openclaw Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag (default: latest)"
+        required: false
+        default: "latest"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/ocl-openclaw-custom
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # required to push to GHCR
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Write Dockerfile
+        run: |
+          cat > /tmp/Dockerfile.openclaw <<'DOCKERFILE'
+          FROM ghcr.io/openclaw/openclaw:latest
+
+          USER root
+
+          # Install Homebrew system-level prerequisites as root
+          RUN apt-get update -qq && \
+              apt-get install -y -qq --no-install-recommends \
+                build-essential \
+                curl \
+                git \
+                procps \
+                file \
+                ca-certificates && \
+              rm -rf /var/lib/apt/lists/*
+
+          # Pre-create the standard Homebrew on Linux directory and give full
+          # ownership to node (UID 1000). The installer uses /home/linuxbrew/.linuxbrew
+          # by default for non-root users. Pre-creating it prevents the installer
+          # from needing sudo to create the directory.
+          RUN mkdir -p /home/linuxbrew && chown -R 1000:1000 /home/linuxbrew
+
+          # Headless browser dependencies required for Chromium/Puppeteer (WhatsApp QR)
+          RUN apt-get update && apt-get install -y \
+                chromium \
+                libnss3 \
+                libatk-bridge2.0-0 \
+                libxcomposite1 \
+                libxdamage1 \
+                libxrandr2 \
+                libgbm1 \
+                libasound2 \
+                libpangocairo-1.0-0 \
+                libgtk-3-0 && \
+              rm -rf /var/lib/apt/lists/*
+
+          # Puppeteer / Chromium env vars
+          ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+          ENV CHROME_PATH=/usr/bin/chromium
+
+          # Ensure the openclaw config directory exists and is owned by the node user
+          RUN mkdir -p /home/node/.openclaw && chown -R node:node /home/node/.openclaw
+
+          USER node
+
+          # CI=1   — tells the installer to skip the `sudo apt-get install`
+          #          prerequisites step (prereqs are already installed above).
+          # NONINTERACTIVE=1 — suppresses all interactive prompts.
+          RUN CI=1 NONINTERACTIVE=1 /bin/bash -c \
+              "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+          # Set standard Homebrew env vars and add to PATH for all subsequent
+          # layers and at container runtime.
+          ENV HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew
+          ENV HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar
+          ENV HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew
+          ENV HOMEBREW_NO_AUTO_UPDATE=1
+          ENV HOMEBREW_NO_ANALYTICS=1
+          ENV PATH="/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:${PATH}"
+
+          # Persist brew shellenv in login/interactive shells
+          RUN echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' \
+                >> /home/node/.bashrc && \
+              echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' \
+                >> /home/node/.profile
+
+          # Smoke-test: verify brew is functional before pushing the image
+          RUN brew --version
+
+          DOCKERFILE
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: /tmp/Dockerfile.openclaw
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          # Layer cache from GHCR to speed up rebuilds
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
