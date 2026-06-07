@@ -42,7 +42,7 @@ export default async function DashboardPage() {
     false
   ) === true;
 
-  const { data: instances, error: instancesError } = await supabase
+  const { data: instances } = await supabase
     .from("instances")
     .select("id, subdomain, status, gateway_token, blueprint_id, config_set_id, user_description, created_at")
     .eq("user_id", user.id)

@@ -19,7 +19,6 @@ import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 interface SidebarProps {
   userEmail: string;
-  isVip: boolean;
 }
 
 function LogoutButtonInline() {
@@ -42,7 +41,6 @@ function LogoutButtonInline() {
 
 export default function DashboardSidebar({
   userEmail,
-  isVip,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
